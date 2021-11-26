@@ -4,6 +4,9 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.SparseArray
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
@@ -17,7 +20,9 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.gliu.wifiscan.databinding.ActivityMainBinding
 import com.google.android.gms.vision.CameraSource
+import com.google.android.gms.vision.Detector
 import com.google.android.gms.vision.text.Text
+import com.google.android.gms.vision.text.TextBlock
 import com.google.android.gms.vision.text.TextRecognizer
 import java.io.IOException
 
@@ -82,7 +87,6 @@ class MainActivity : AppCompatActivity() {
                         // to handle the case where the user grants the permission. See the documentation
                         // for ActivityCompat#requestPermissions for more details.
                         ActivityCompat.requestPermissions(context as MainActivity, Array(1){Manifest.permission.CAMERA}, PackageManager.PERMISSION_GRANTED)
-                        return
                     }
                     cameraSource.start()
                 } catch (e: IOException) {
@@ -100,9 +104,42 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
-                TODO("Not yet implemented")
+                cameraSource.stop()
             }
         })
+
+        textRecognizer.setProcessor(object: Detector.Processor<TextBlock> {
+            override fun release() {
+            }
+
+            override fun receiveDetections(p0: Detector.Detections<TextBlock>) {
+                var sparseArray: SparseArray<TextBlock> = p0.detectedItems
+                var stringBuilder: StringBuilder = StringBuilder()
+
+                for (i in 0..sparseArray.size()) {
+                    var textBlock: TextBlock = sparseArray[i]
+                    if (textBlock != null) {
+                        stringBuilder.append(textBlock.value + " ")
+                    }
+                }
+
+                var fullString: String = stringBuilder.toString()
+                var handler: Handler = Handler(Looper.getMainLooper())
+                handler.post(object: Runnable {
+                    override fun run() {
+                        stringResult = fullString
+                        resultObtained()
+                    }
+                })
+            }
+        })
+    }
+
+    private fun resultObtained() {
+        setContentView(R.layout.activity_main)
+        textView = findViewById(R.id.textView)
+        textView.text = stringResult
+
     }
 
     fun buttonStart(view: View) {
